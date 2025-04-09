@@ -13,6 +13,17 @@ pid_t dc_pid;
 int shm_fd;
 volatile sig_atomic_t running = 1;
 
+void cleanup(int sig) {
+    running = 0;
+    if (dc_pid > 0) {
+        kill(dc_pid, SIGINT);
+        waitpid(dc_pid, NULL, 0);
+    }
+    munmap(shm, sizeof(SharedMemory));
+    close(shm_fd);
+    exit(0);
+}
+
 int main() {
     pid_t pid;
 
@@ -31,3 +42,15 @@ int main() {
     }
     dc_pid = pid;
     shm->dc_pid = dc_pid;
+
+    while (running) {
+        sem_wait(&shm->mutex);
+        char letter = 'A' + (rand() % 20);
+        shm->buffer[shm->write_index] = letter;
+        shm->write_index = (shm->write_index + 1) % BUFFER_SIZE;
+        sem_post(&shm->mutex);
+        usleep(50000);
+    }
+
+    return 0;
+}
