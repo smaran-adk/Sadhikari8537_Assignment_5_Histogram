@@ -38,3 +38,28 @@ int main() {
     shm->read_index = 0;
     for (int i = 0; i < 20; i++) shm->letter_count[i] = 0;
     sem_init(&shm->mutex, 1, 1);
+    srand(time(NULL));
+
+    pid = fork();
+    if (pid == 0) {
+        execlp("./bin/dp2", "dp2", NULL);
+        perror("execlp failed");
+        exit(1);
+    }
+    dp2_pid = pid;
+    shm->dp1_pid = getpid();
+    shm->dp2_pid = dp2_pid;
+
+    while (running) {
+        sem_wait(&shm->mutex);
+        for (int i = 0; i < 20; i++) {
+            char letter = 'A' + (rand() % 20);
+            shm->buffer[shm->write_index] = letter;
+            shm->write_index = (shm->write_index + 1) % BUFFER_SIZE;
+        }
+        sem_post(&shm->mutex);
+        sleep(2);
+    }
+
+    return 0;
+}
